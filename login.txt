@@ -1,0 +1,64 @@
+import time
+import urequests as requests
+
+def generate_auth_tag():
+    rckey = str(int(time.time() * 1000))
+    pwd = do_encrypt_rc4("hzy123231", rckey)
+    return pwd, rckey
+
+def do_encrypt_rc4(src, passwd):
+    src = src.strip()
+    passwd = str(passwd)
+
+    key = bytearray([0] * 256)
+    sbox = bytearray([0] * 256)
+    output = [""] * len(src)
+
+    plen = len(passwd)
+    size = len(src)
+
+    for i in range(256):
+        key[i] = ord(passwd[i % plen])
+        sbox[i] = i
+    j = 0
+    for i in range(256):
+        j = (j + sbox[i] + key[i]) % 256
+        temp = sbox[i]
+        sbox[i] = sbox[j]
+        sbox[j] = temp
+
+    a = 0
+    b = 0
+    for i in range(size):
+        a = (a + 1) % 256
+        b = (b + sbox[a]) % 256
+        temp = sbox[a]
+        sbox[a] = sbox[b]
+        sbox[b] = temp
+        c = (sbox[a] + sbox[b]) % 256
+        temp = ord(src[i]) ^ sbox[c]
+        temp = hex(temp)[2:].zfill(2)
+        output[i] = temp
+
+    return "".join(output)
+
+def authInternet():
+    auth_tag, rckey = generate_auth_tag()
+    url = "http://4.3.2.1/ac_portal/login.php"
+    data = {
+        "opr": "pwdLogin",
+        "userName": "20270244",
+        "pwd": auth_tag,
+        "auth_tag": rckey,
+        "rememberPwd": "0"
+    }
+    response = requests.post(url, data=data)
+    content = response.content.decode()  # 将返回的字节流转换为字符串
+
+    # 检查响应内容并返回布尔值
+    if 'success' in content:
+        json_data = ujson.loads(content)  # 将 JSON 字符串转换为 Python 对象
+        return json_data['success']
+    else:
+        return False
+
